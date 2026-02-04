@@ -35,7 +35,7 @@ function is_student() {
 
 function require_admin() {
     if (!is_admin()) {
-        redirect('/codexCbt/admin/login.php');
+        redirect('/cbt/admin/login.php');
     }
 }
 
@@ -78,13 +78,13 @@ function admin_can($permission) {
 function require_admin_permission($permission) {
     if (!admin_can($permission)) {
         flash('error', 'You do not have access to that section.');
-        redirect('/codexCbt/admin/dashboard.php');
+        redirect('/cbt/admin/dashboard.php');
     }
 }
 
 function require_student() {
     if (!is_student()) {
-        redirect('/codexCbt/student/login.php');
+        redirect('/cbt/student/login.php');
     }
 }
 
@@ -127,10 +127,10 @@ function enforce_session_timeout() {
         // Flash message survives redirect so login can display a friendly reason.
         $_SESSION['flash']['error'] = 'Your session expired due to inactivity. Please sign in again.';
         if ($was_admin) {
-            redirect('/codexCbt/admin/login.php');
+            redirect('/cbt/admin/login.php');
         }
         if ($was_student) {
-            redirect('/codexCbt/student/login.php');
+            redirect('/cbt/student/login.php');
         }
     }
 

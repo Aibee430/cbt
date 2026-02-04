@@ -12,13 +12,13 @@ $attempt = DB::queryFirstRow('
 ', $attempt_id, $student_id);
 
 if (!$attempt) {
-    redirect('/codexCbt/student/dashboard.php');
+    redirect('/cbt/student/dashboard.php');
 }
 
 if ($attempt['status'] !== 'in_progress') {
     // Clear active attempt marker once exam is no longer in progress.
     unset($_SESSION['active_exam_attempt_id']);
-    redirect('/codexCbt/student/results.php');
+    redirect('/cbt/student/results.php');
 }
 
 $questions = DB::query('
@@ -106,7 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Clear active attempt marker on submission.
     unset($_SESSION['active_exam_attempt_id']);
-    redirect('/codexCbt/student/results.php');
+    redirect('/cbt/student/results.php');
 }
 
 $end_time = strtotime($attempt['started_at']) + ((int)$attempt['duration_minutes'] * 60);

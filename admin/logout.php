@@ -2,4 +2,4 @@
 require_once __DIR__ . '/../app/bootstrap.php';
 
 unset($_SESSION['admin']);
-redirect('/codexCbt/admin/login.php');
+redirect('/cbt/admin/login.php');

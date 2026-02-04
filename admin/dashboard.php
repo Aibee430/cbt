@@ -55,7 +55,7 @@ $upcoming = DB::query('SELECT exams.*, subjects.name AS subject_name FROM exams 
 <div class="card shadow-sm mt-4">
     <div class="card-header d-flex justify-content-between align-items-center">
         <span>Upcoming / Recent Exams</span>
-        <a class="btn btn-sm btn-primary" href="/codexCbt/admin/exams.php">Manage Exams</a>
+        <a class="btn btn-sm btn-primary" href="/cbt/admin/exams.php">Manage Exams</a>
     </div>
     <div class="card-body p-0">
         <table class="table mb-0">

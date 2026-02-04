@@ -5,7 +5,7 @@
 2. Import the schema: `database/schema.sql`.
 3. If upgrading an existing database, run migrations in `database/migrations`.
 4. Update DB credentials in `connections/config.php` if needed.
-5. Open `http://localhost/codexCbt` in your browser.
+5. Open `http://localhost/cbt` in your browser.
 
 ## Default Logins
 - Admin: `admin@codexcbt.local` / `admin123`

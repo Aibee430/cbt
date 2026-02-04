@@ -12,7 +12,7 @@ $attempt = DB::queryFirstRow('
 ', $attempt_id);
 
 if (!$attempt) {
-    redirect('/codexCbt/admin/results.php');
+    redirect('/cbt/admin/results.php');
 }
 
 $message = null;
@@ -107,7 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     <?php endforeach; ?>
     <button class="btn btn-primary" type="submit">Save Grades</button>
-    <a class="btn btn-outline-secondary" href="/codexCbt/admin/results.php">Back</a>
+    <a class="btn btn-outline-secondary" href="/cbt/admin/results.php">Back</a>
 </form>
 
 <?php require_once __DIR__ . '/footer.php'; ?>

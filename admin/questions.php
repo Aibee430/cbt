@@ -204,7 +204,7 @@ $questions = DB::query('SELECT questions.*, subjects.name AS subject_name FROM q
             <div class="card-body">
                 <p class="small text-muted">
                     Download the template, fill it, and upload here.
-                    <a href="/codexCbt/docs/question_upload_template.csv">Download template</a>
+                    <a href="/cbt/docs/question_upload_template.csv">Download template</a>
                 </p>
                 <form method="post" enctype="multipart/form-data" class="row g-2 align-items-center">
                     <input type="hidden" name="action" value="bulk_upload">
@@ -354,10 +354,10 @@ $questions = DB::query('SELECT questions.*, subjects.name AS subject_name FROM q
     </div>
 </div>
 
-<link rel="stylesheet" href="/codexCbt/assets/libs/datatables/css/dataTables.bootstrap5.min.css">
-<script src="/codexCbt/assets/libs/jquery/jquery.min.js"></script>
-<script src="/codexCbt/assets/libs/datatables/js/jquery.dataTables.min.js"></script>
-<script src="/codexCbt/assets/libs/datatables/js/dataTables.bootstrap5.min.js"></script>
+<link rel="stylesheet" href="/cbt/assets/libs/datatables/css/dataTables.bootstrap5.min.css">
+<script src="/cbt/assets/libs/jquery/jquery.min.js"></script>
+<script src="/cbt/assets/libs/datatables/js/jquery.dataTables.min.js"></script>
+<script src="/cbt/assets/libs/datatables/js/dataTables.bootstrap5.min.js"></script>
 <script>
 // DataTable setup with search, paging, and sorting.
 $(function () {

@@ -74,9 +74,9 @@ $error = flash('error');
                         <td><span class="badge bg-<?php echo $status === 'Open' ? 'success' : 'secondary'; ?>"><?php echo $status; ?></span></td>
                         <td class="text-end">
                             <?php if (isset($in_progress_map[$exam['id']])): ?>
-                                <a class="btn btn-sm btn-warning" href="/codexCbt/student/exam.php?attempt_id=<?php echo (int)$in_progress_map[$exam['id']]; ?>">Resume</a>
+                                <a class="btn btn-sm btn-warning" href="/cbt/student/exam.php?attempt_id=<?php echo (int)$in_progress_map[$exam['id']]; ?>">Resume</a>
                             <?php elseif ($status === 'Open'): ?>
-                                <a class="btn btn-sm btn-primary" href="/codexCbt/student/start_exam.php?exam_id=<?php echo (int)$exam['id']; ?>">Start</a>
+                                <a class="btn btn-sm btn-primary" href="/cbt/student/start_exam.php?exam_id=<?php echo (int)$exam['id']; ?>">Start</a>
                             <?php else: ?>
                                 <button class="btn btn-sm btn-outline-secondary" disabled>Not available</button>
                             <?php endif; ?>

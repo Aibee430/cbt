@@ -152,7 +152,7 @@ $students = DB::query('SELECT students.*, classes.name AS class_name FROM studen
             <div class="card-body">
                 <p class="small text-muted mb-2">
                     Bulk upload new students using the CSV template.
-                    <a href="/codexCbt/docs/student_upload_template.csv">Download template</a>
+                    <a href="/cbt/docs/student_upload_template.csv">Download template</a>
                 </p>
                 <form method="post" enctype="multipart/form-data" class="row g-2 align-items-center">
                     <input type="hidden" name="action" value="bulk_upload">
@@ -261,10 +261,10 @@ $students = DB::query('SELECT students.*, classes.name AS class_name FROM studen
     </div>
 </div>
 
-<link rel="stylesheet" href="/codexCbt/assets/libs/datatables/css/dataTables.bootstrap5.min.css">
-<script src="/codexCbt/assets/libs/jquery/jquery.min.js"></script>
-<script src="/codexCbt/assets/libs/datatables/js/jquery.dataTables.min.js"></script>
-<script src="/codexCbt/assets/libs/datatables/js/dataTables.bootstrap5.min.js"></script>
+<link rel="stylesheet" href="/cbt/assets/libs/datatables/css/dataTables.bootstrap5.min.css">
+<script src="/cbt/assets/libs/jquery/jquery.min.js"></script>
+<script src="/cbt/assets/libs/datatables/js/jquery.dataTables.min.js"></script>
+<script src="/cbt/assets/libs/datatables/js/dataTables.bootstrap5.min.js"></script>
 <script>
 $(function () {
     $('#studentsTable').DataTable({

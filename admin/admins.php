@@ -191,10 +191,10 @@ $roles = [
     </div>
 </div>
 
-<link rel="stylesheet" href="/codexCbt/assets/libs/datatables/css/dataTables.bootstrap5.min.css">
-<script src="/codexCbt/assets/libs/jquery/jquery.min.js"></script>
-<script src="/codexCbt/assets/libs/datatables/js/jquery.dataTables.min.js"></script>
-<script src="/codexCbt/assets/libs/datatables/js/dataTables.bootstrap5.min.js"></script>
+<link rel="stylesheet" href="/cbt/assets/libs/datatables/css/dataTables.bootstrap5.min.css">
+<script src="/cbt/assets/libs/jquery/jquery.min.js"></script>
+<script src="/cbt/assets/libs/datatables/js/jquery.dataTables.min.js"></script>
+<script src="/cbt/assets/libs/datatables/js/dataTables.bootstrap5.min.js"></script>
 <script>
 $(function () {
     $('#adminsTable').DataTable({

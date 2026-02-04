@@ -2,7 +2,7 @@
 require_once __DIR__ . '/../app/bootstrap.php';
 
 if (is_admin()) {
-    redirect('/codexCbt/admin/dashboard.php');
+    redirect('/cbt/admin/dashboard.php');
 }
 
 $flash_error = flash('error'); // Session timeout or access message.
@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'email' => $admin['email'],
             'role' => $admin['role'] ?? 'super_admin'
         ];
-        redirect('/codexCbt/admin/dashboard.php');
+        redirect('/cbt/admin/dashboard.php');
     }
 
     $error = 'Invalid login credentials.';
@@ -31,8 +31,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Admin Login - Codex CBT</title>
-    <link rel="stylesheet" href="/codexCbt/assets/css/bootstrap.min.css">
-    <link rel="stylesheet" href="/codexCbt/assets/css/app.css">
+    <link rel="stylesheet" href="/cbt/assets/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/cbt/assets/css/app.css">
 </head>
 <body>
     <div class="min-vh-100 d-flex align-items-center justify-content-center">
@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         </div>
     </div>
-    <script src="/codexCbt/assets/js/bootstrap.bundle.min.js"></script>
-    <script src="/codexCbt/assets/js/app.js"></script>
+    <script src="/cbt/assets/js/bootstrap.bundle.min.js"></script>
+    <script src="/cbt/assets/js/app.js"></script>
 </body>
 </html>

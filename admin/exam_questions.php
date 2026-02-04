@@ -6,7 +6,7 @@ $exam_id = (int)($_GET['exam_id'] ?? 0);
 $exam = DB::queryFirstRow('SELECT exams.*, subjects.name AS subject_name FROM exams JOIN subjects ON subjects.id=exams.subject_id WHERE exams.id=%i', $exam_id);
 
 if (!$exam) {
-    redirect('/codexCbt/admin/exams.php');
+    redirect('/cbt/admin/exams.php');
 }
 
 $message = null;

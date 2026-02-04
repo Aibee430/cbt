@@ -72,8 +72,8 @@ if ($exam_id) {
             </div>
             <div class="col-md-6 d-flex gap-2">
                 <button class="btn btn-primary" type="submit">Apply Filter</button>
-                <a class="btn btn-outline-secondary" href="/codexCbt/admin/export_results.php?format=csv&exam_id=<?php echo $exam_id; ?>">Export CSV</a>
-                <a class="btn btn-outline-secondary" href="/codexCbt/admin/export_results.php?format=pdf&exam_id=<?php echo $exam_id; ?>">Export PDF</a>
+                <a class="btn btn-outline-secondary" href="/cbt/admin/export_results.php?format=csv&exam_id=<?php echo $exam_id; ?>">Export CSV</a>
+                <a class="btn btn-outline-secondary" href="/cbt/admin/export_results.php?format=pdf&exam_id=<?php echo $exam_id; ?>">Export PDF</a>
             </div>
         </form>
     </div>
@@ -119,7 +119,7 @@ if ($exam_id) {
                         </td>
                         <td><?php echo format_dt($attempt['submitted_at']); ?></td>
                         <td class="text-end">
-                            <a class="btn btn-sm btn-outline-primary" href="/codexCbt/admin/grade.php?attempt_id=<?php echo (int)$attempt['id']; ?>">Grade/View</a>
+                            <a class="btn btn-sm btn-outline-primary" href="/cbt/admin/grade.php?attempt_id=<?php echo (int)$attempt['id']; ?>">Grade/View</a>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -128,10 +128,10 @@ if ($exam_id) {
     </div>
 </div>
 
-<link rel="stylesheet" href="/codexCbt/assets/libs/datatables/css/dataTables.bootstrap5.min.css">
-<script src="/codexCbt/assets/libs/jquery/jquery.min.js"></script>
-<script src="/codexCbt/assets/libs/datatables/js/jquery.dataTables.min.js"></script>
-<script src="/codexCbt/assets/libs/datatables/js/dataTables.bootstrap5.min.js"></script>
+<link rel="stylesheet" href="/cbt/assets/libs/datatables/css/dataTables.bootstrap5.min.css">
+<script src="/cbt/assets/libs/jquery/jquery.min.js"></script>
+<script src="/cbt/assets/libs/datatables/js/jquery.dataTables.min.js"></script>
+<script src="/cbt/assets/libs/datatables/js/dataTables.bootstrap5.min.js"></script>
 <script>
 $(function () {
     const table = $('#resultsTable').DataTable({

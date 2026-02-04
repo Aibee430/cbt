@@ -166,7 +166,7 @@ $now_ts = time();
                                         data-release="<?php echo $exam['result_release_at'] ? date('Y-m-d\TH:i', strtotime($exam['result_release_at'])) : ''; ?>"
                                         <?php echo $is_open ? 'disabled' : ''; ?>
                                     >Edit</button>
-                                    <a class="btn btn-sm btn-outline-primary <?php echo $is_open ? 'disabled' : ''; ?>" <?php echo $is_open ? 'tabindex="-1" aria-disabled="true"' : ''; ?> href="/codexCbt/admin/exam_questions.php?exam_id=<?php echo (int)$exam['id']; ?>">Questions</a>
+                                    <a class="btn btn-sm btn-outline-primary <?php echo $is_open ? 'disabled' : ''; ?>" <?php echo $is_open ? 'tabindex="-1" aria-disabled="true"' : ''; ?> href="/cbt/admin/exam_questions.php?exam_id=<?php echo (int)$exam['id']; ?>">Questions</a>
                                     <form method="post" class="d-inline" onsubmit="return confirm('Delete this exam and all related assignments?');">
                                         <input type="hidden" name="action" value="delete">
                                         <input type="hidden" name="exam_id" value="<?php echo (int)$exam['id']; ?>">
@@ -182,10 +182,10 @@ $now_ts = time();
     </div>
 </div>
 
-<link rel="stylesheet" href="/codexCbt/assets/libs/datatables/css/dataTables.bootstrap5.min.css">
-<script src="/codexCbt/assets/libs/jquery/jquery.min.js"></script>
-<script src="/codexCbt/assets/libs/datatables/js/jquery.dataTables.min.js"></script>
-<script src="/codexCbt/assets/libs/datatables/js/dataTables.bootstrap5.min.js"></script>
+<link rel="stylesheet" href="/cbt/assets/libs/datatables/css/dataTables.bootstrap5.min.css">
+<script src="/cbt/assets/libs/jquery/jquery.min.js"></script>
+<script src="/cbt/assets/libs/datatables/js/jquery.dataTables.min.js"></script>
+<script src="/cbt/assets/libs/datatables/js/dataTables.bootstrap5.min.js"></script>
 <script>
 $(function () {
     $('#examsTable').DataTable({

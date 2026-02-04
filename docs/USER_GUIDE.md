@@ -8,7 +8,7 @@ Codex CBT is a web-based Computer-Based Test system built with PHP, MySQL, and B
 2. Import schema: `database/schema.sql`.
 3. If upgrading an existing install, run SQL in `database/migrations`.
 4. Update credentials in `connections/config.php`.
-5. Open `http://localhost/codexCbt`.
+5. Open `http://localhost/cbt`.
 
 ## Default Logins
 - Admin: `admin@codexcbt.local` / `admin123`

@@ -14,13 +14,13 @@ $exam = DB::queryFirstRow('
 
 if (!$exam) {
     flash('error', 'Exam not found or not assigned.');
-    redirect('/codexCbt/student/dashboard.php');
+    redirect('/cbt/student/dashboard.php');
 }
 
 $now = now_mysql();
 if ($now < $exam['start_at'] || $now > $exam['end_at']) {
     flash('error', 'Exam is not available now.');
-    redirect('/codexCbt/student/dashboard.php');
+    redirect('/cbt/student/dashboard.php');
 }
 
 $attempt_count = (int)DB::queryFirstField('SELECT COUNT(*) FROM exam_attempts WHERE exam_id=%i AND student_id=%i', $exam_id, $student_id);
@@ -31,12 +31,12 @@ $in_progress = DB::queryFirstRow('SELECT id FROM exam_attempts WHERE exam_id=%i 
 if ($in_progress) {
     // Keep a quick session marker for active exam state.
     $_SESSION['active_exam_attempt_id'] = (int)$in_progress['id'];
-    redirect('/codexCbt/student/exam.php?attempt_id=' . (int)$in_progress['id']);
+    redirect('/cbt/student/exam.php?attempt_id=' . (int)$in_progress['id']);
 }
 
 if ($attempt_count >= $allowed_attempts) {
     flash('error', 'No attempts remaining for this exam.');
-    redirect('/codexCbt/student/dashboard.php');
+    redirect('/cbt/student/dashboard.php');
 }
 
 // Create a new attempt record for the student.
@@ -66,4 +66,4 @@ foreach ($question_ids as $qid) {
     ]);
 }
 
-redirect('/codexCbt/student/exam.php?attempt_id=' . $attempt_id);
+redirect('/cbt/student/exam.php?attempt_id=' . $attempt_id);
