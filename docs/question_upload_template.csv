@@ -1,0 +1,21 @@
+subject_code,subject_id,question_type,question_text,marks,correct_answer,option_a,option_b,option_c,option_d,correct_option
+PHY,,mcq,What is the SI unit of force?,1,,Newton,Joule,Watt,Pascal,A
+PHY,,mcq,Which quantity is a vector?,1,,Speed,Velocity,Mass,Energy,B
+PHY,,mcq,What is the acceleration due to gravity on Earth (approx.)?,1,,9.8 m/s^2,3.0 m/s^2,1.6 m/s^2,98 m/s^2,A
+PHY,,mcq,Which law states that every action has an equal and opposite reaction?,1,,Newton's First Law,Newton's Second Law,Newton's Third Law,Law of Gravitation,C
+PHY,,mcq,Which device is used to measure electric current?,1,,Voltmeter,Ammeter,Barometer,Thermometer,B
+PHY,,mcq,What is the energy of a moving object called?,1,,Potential energy,Kinetic energy,Thermal energy,Chemical energy,B
+PHY,,mcq,What is the SI unit of power?,1,,Joule,Newton,Watt,Coulomb,C
+PHY,,mcq,Which wave does not require a medium to travel?,1,,Sound wave,Water wave,Electromagnetic wave,Seismic wave,C
+PHY,,mcq,What does an object do if the net force on it is zero?,1,,Accelerates,Changes direction,Remains at rest or moves at constant velocity,Stops immediately,C
+PHY,,mcq,What is the unit of electrical resistance?,1,,Ohm,Volt,Ampere,Farad,A
+PHY,,fill,The SI unit of energy is the _____.,1,Joule,,,,,
+PHY,,fill,Velocity is displacement divided by _____. ,1,time,,,,,
+PHY,,fill,The force that opposes motion between surfaces is called _____. ,1,friction,,,,,
+PHY,,fill,The device used to measure temperature is a _____.,1,thermometer,,,,,
+PHY,,fill,The rate of change of velocity is called _____. ,1,acceleration,,,,,
+PHY,,fill,The SI unit of electric current is the _____.,1,ampere,,,,,
+PHY,,fill,The path followed by a projectile is called a _____.,1,parabola,,,,,
+PHY,,fill,The energy stored in a stretched spring is _____ energy.,1,elastic potential,,,,,
+PHY,,fill,The center of an atom is called the _____. ,1,nucleus,,,,,
+PHY,,fill,Work equals force times _____. ,1,displacement,,,,,
