@@ -97,96 +97,178 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($error) {
                     fclose($handle);
                 } else {
-                $subject_map = DB::query('SELECT id, code FROM subjects');
-                $subject_by_code = [];
-                foreach ($subject_map as $row) {
-                    $subject_by_code[strtolower($row['code'])] = (int)$row['id'];
-                }
-
-                $inserted = 0;
-                $skipped = 0;
-                $row_number = 1;
-
-                $get = function ($key, $row) use ($columns) {
-                    return isset($columns[$key]) ? ($row[$columns[$key]] ?? '') : '';
-                };
-
-                // Parse each CSV row and insert questions by type.
-                while (($row = fgetcsv($handle)) !== false) {
-                    $row_number++;
-                    if (count(array_filter($row, 'strlen')) === 0) {
-                        continue;
+                    $subject_map = DB::query('SELECT id, code FROM subjects');
+                    $subject_by_code = [];
+                    foreach ($subject_map as $row) {
+                        $subject_by_code[strtolower($row['code'])] = (int)$row['id'];
                     }
 
-                    $subject_id = 0;
-                    if (isset($columns['subject_id']) && is_numeric($get('subject_id', $row))) {
-                        $subject_id = (int)$get('subject_id', $row);
-                    } elseif (isset($columns['subject_code'])) {
-                        $code = strtolower(trim($get('subject_code', $row)));
-                        $subject_id = $subject_by_code[$code] ?? 0;
-                    }
+                    $inserted = 0;
+                    $skipped = 0;
+                    $row_number = 1;
+                    $row_errors = [];
+                    $error_counts = [];
 
-                    $question_type = strtolower(trim($get('question_type', $row)));
-                    $question_text = trim($get('question_text', $row));
-                    $marks = (int)($get('marks', $row) ?: 1);
-                    $marks = $marks > 0 ? $marks : 1;
+                    $add_row_error = function ($line, $reason) use (&$row_errors, &$error_counts) {
+                        $error_counts[$reason] = ($error_counts[$reason] ?? 0) + 1;
+                        if (count($row_errors) < 10) {
+                            $row_errors[] = "line {$line}: {$reason}";
+                        }
+                    };
 
-                    if (!$subject_id || !$question_text || !in_array($question_type, ['mcq', 'fill', 'essay'], true)) {
-                        $skipped++;
-                        continue;
-                    }
+                    $normalize_type = function ($value) {
+                        $type = strtolower(trim((string)$value));
+                        if (in_array($type, ['mcq', 'objective', 'obj', 'multiple_choice', 'multiple choice'], true)) {
+                            return 'mcq';
+                        }
+                        if (in_array($type, ['fill', 'fill in the blank', 'fill_in_blank', 'fib'], true)) {
+                            return 'fill';
+                        }
+                        if (in_array($type, ['essay'], true)) {
+                            return 'essay';
+                        }
+                        return '';
+                    };
 
-                    $correct_answer = trim($get('correct_answer', $row));
-                    DB::insert('questions', [
-                        'subject_id' => $subject_id,
-                        'question_text' => $question_text,
-                        'question_type' => $question_type,
-                        'correct_answer' => ($question_type === 'fill') ? $correct_answer : null,
-                        'marks' => $marks
-                    ]);
-                    $question_id = DB::insertId();
+                    $get = function ($key, $row) use ($columns) {
+                        return isset($columns[$key]) ? ($row[$columns[$key]] ?? '') : '';
+                    };
 
-                    if ($question_type === 'mcq') {
-                        $options = [
-                            trim($get('option_a', $row)),
-                            trim($get('option_b', $row)),
-                            trim($get('option_c', $row)),
-                            trim($get('option_d', $row))
-                        ];
-                        $correct_raw = strtoupper(trim($get('correct_option', $row)));
-                        $correct_index = is_numeric($correct_raw) ? ((int)$correct_raw - 1) : (ord($correct_raw) - ord('A'));
-                        if ($correct_index < 0 || $correct_index > 3) {
-                            DB::delete('questions', 'id=%i', $question_id);
-                            $skipped++;
+                    // Parse each CSV row and insert questions only when validation passes.
+                    while (($row = fgetcsv($handle)) !== false) {
+                        $row_number++;
+                        if (count(array_filter($row, 'strlen')) === 0) {
                             continue;
                         }
 
-                        $option_count = 0;
-                        foreach ($options as $idx => $option_text) {
-                            if ($option_text === '') {
+                        $subject_id = 0;
+                        $subject_id_raw = trim((string)$get('subject_id', $row));
+                        $subject_code_raw = strtolower(trim((string)$get('subject_code', $row)));
+                        if ($subject_id_raw !== '' && ctype_digit($subject_id_raw)) {
+                            $subject_id = (int)$subject_id_raw;
+                        } elseif ($subject_code_raw !== '') {
+                            $subject_id = $subject_by_code[$subject_code_raw] ?? 0;
+                        }
+
+                        $question_type = $normalize_type($get('question_type', $row));
+                        $question_text = trim((string)$get('question_text', $row));
+                        $marks_raw = trim((string)$get('marks', $row));
+                        $marks = ($marks_raw === '') ? 1 : (int)$marks_raw;
+                        $marks = $marks > 0 ? $marks : 0;
+                        $correct_answer = trim((string)$get('correct_answer', $row));
+
+                        if (!$subject_id) {
+                            $skipped++;
+                            $add_row_error($row_number, 'invalid or missing subject_id/subject_code');
+                            continue;
+                        }
+                        if ($question_text === '') {
+                            $skipped++;
+                            $add_row_error($row_number, 'question_text is required');
+                            continue;
+                        }
+                        if ($question_type === '') {
+                            $skipped++;
+                            $add_row_error($row_number, 'question_type must be mcq, fill, or essay');
+                            continue;
+                        }
+                        if ($marks <= 0) {
+                            $skipped++;
+                            $add_row_error($row_number, 'marks must be a positive integer');
+                            continue;
+                        }
+
+                        $options = [];
+                        $correct_index = -1;
+                        if ($question_type === 'fill' && $correct_answer === '') {
+                            $skipped++;
+                            $add_row_error($row_number, 'correct_answer is required for fill questions');
+                            continue;
+                        }
+                        if ($question_type === 'mcq') {
+                            $options = [
+                                trim((string)$get('option_a', $row)),
+                                trim((string)$get('option_b', $row)),
+                                trim((string)$get('option_c', $row)),
+                                trim((string)$get('option_d', $row))
+                            ];
+                            $correct_raw = strtoupper(trim((string)$get('correct_option', $row)));
+                            if ($correct_raw === '') {
+                                $skipped++;
+                                $add_row_error($row_number, 'correct_option is required for mcq questions');
                                 continue;
                             }
-                            $option_count++;
-                            DB::insert('question_options', [
-                                'question_id' => $question_id,
-                                'option_text' => $option_text,
-                                'is_correct' => ($idx === $correct_index) ? 1 : 0
-                            ]);
+                            $correct_index = ctype_digit($correct_raw) ? ((int)$correct_raw - 1) : (ord($correct_raw) - ord('A'));
+                            if ($correct_index < 0 || $correct_index > 3) {
+                                $skipped++;
+                                $add_row_error($row_number, 'correct_option must be A-D or 1-4');
+                                continue;
+                            }
+
+                            $filled_option_count = 0;
+                            foreach ($options as $option_text) {
+                                if ($option_text !== '') {
+                                    $filled_option_count++;
+                                }
+                            }
+                            if ($filled_option_count < 2) {
+                                $skipped++;
+                                $add_row_error($row_number, 'mcq questions require at least two non-empty options');
+                                continue;
+                            }
+                            if (($options[$correct_index] ?? '') === '') {
+                                $skipped++;
+                                $add_row_error($row_number, 'correct_option points to an empty option');
+                                continue;
+                            }
                         }
 
-                        if ($option_count < 2) {
-                            DB::delete('question_options', 'question_id=%i', $question_id);
-                            DB::delete('questions', 'id=%i', $question_id);
+                        try {
+                            DB::insert('questions', [
+                                'subject_id' => $subject_id,
+                                'question_text' => $question_text,
+                                'question_type' => $question_type,
+                                'correct_answer' => ($question_type === 'fill') ? $correct_answer : null,
+                                'marks' => $marks
+                            ]);
+                            $question_id = DB::insertId();
+
+                            if ($question_type === 'mcq') {
+                                foreach ($options as $idx => $option_text) {
+                                    if ($option_text === '') {
+                                        continue;
+                                    }
+                                    DB::insert('question_options', [
+                                        'question_id' => $question_id,
+                                        'option_text' => $option_text,
+                                        'is_correct' => ($idx === $correct_index) ? 1 : 0
+                                    ]);
+                                }
+                            }
+
+                            $inserted++;
+                        } catch (Throwable $e) {
                             $skipped++;
-                            continue;
+                            $add_row_error($row_number, 'database error while saving row');
                         }
                     }
 
-                    $inserted++;
-                }
-
-                fclose($handle);
-                $bulk_report = "Bulk upload completed. Inserted: {$inserted}, Skipped: {$skipped}.";
+                    fclose($handle);
+                    $bulk_report = "Bulk upload completed. Inserted: {$inserted}, Skipped: {$skipped}.";
+                    if ($skipped > 0) {
+                        arsort($error_counts);
+                        $summary = [];
+                        foreach ($error_counts as $reason => $count) {
+                            $summary[] = "{$count}x {$reason}";
+                            if (count($summary) >= 5) {
+                                break;
+                            }
+                        }
+                        $error = "Some rows were skipped.\nReasons: " . implode('; ', $summary) . '.';
+                        if ($row_errors) {
+                            $error .= "\nExamples: " . implode(' | ', $row_errors);
+                        }
+                    }
                 }
             }
         } else {
@@ -200,7 +282,10 @@ $questions = DB::query('SELECT questions.*, subjects.name AS subject_name FROM q
 ?>
 <h3 class="mb-1">Question Bank</h3>
 <div class="card shadow-sm mt-2 mb-2">
-            <div class="card-header">Question Bulk Upload (CSV)</div>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Question Bulk Upload (CSV)</span>
+                <button class="btn btn-sm btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#addQuestionModal">Add Single Question</button>
+            </div>
             <div class="card-body">
                 <p class="small text-muted">
                     Download the template, fill it, and upload here.
@@ -230,81 +315,24 @@ $questions = DB::query('SELECT questions.*, subjects.name AS subject_name FROM q
     <div class="alert alert-warning" data-auto-dismiss><?php echo htmlspecialchars($bulk_delete_report); ?></div>
 <?php endif; ?>
 <?php if ($error): ?>
-    <div class="alert alert-danger" data-auto-dismiss><?php echo htmlspecialchars($error); ?></div>
+    <div class="alert alert-danger" data-auto-dismiss data-auto-dismiss-ms="25000"><?php echo nl2br(htmlspecialchars($error)); ?></div>
 <?php endif; ?>
 
 <div class="row g-4">
-    <div class="col-lg-5">
-        
-        <div class="card shadow-sm">
-            <div class="card-header">Single Question Upload</div>
-            <div class="card-body">
-                <form method="post">
-                    <input type="hidden" name="action" value="add">
-                    <div class="mb-3">
-                        <label class="form-label">Subject</label>
-                        <select name="subject_id" class="form-select" required>
-                            <option value="">Select subject</option>
-                            <?php foreach ($subjects as $subject): ?>
-                                <option value="<?php echo (int)$subject['id']; ?>"><?php echo htmlspecialchars($subject['name']); ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Question</label>
-                        <textarea name="question_text" class="form-control" rows="4" required></textarea>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Type</label>
-                            <select name="question_type" class="form-select" required>
-                                <option value="mcq">Multiple Choice</option>
-                                <option value="fill">Fill in the Blank</option>
-                                <option value="essay">Essay</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Marks</label>
-                            <input type="number" name="marks" class="form-control" value="1" min="1" required>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Correct Answer (Fill in the blank)</label>
-                        <input type="text" name="correct_answer" class="form-control">
-                    </div>
-                    <div class="border rounded p-3 mb-3">
-                        <div class="fw-semibold mb-2">MCQ Options</div>
-                        <div class="mb-2">
-                            <input type="text" name="option_a" class="form-control" placeholder="Option A">
-                        </div>
-                        <div class="mb-2">
-                            <input type="text" name="option_b" class="form-control" placeholder="Option B">
-                        </div>
-                        <div class="mb-2">
-                            <input type="text" name="option_c" class="form-control" placeholder="Option C">
-                        </div>
-                        <div class="mb-2">
-                            <input type="text" name="option_d" class="form-control" placeholder="Option D">
-                        </div>
-                        <label class="form-label">Correct Option</label>
-                        <select name="correct_option" class="form-select">
-                            <option value="1">A</option>
-                            <option value="2">B</option>
-                            <option value="3">C</option>
-                            <option value="4">D</option>
-                        </select>
-                    </div>
-                    <button class="btn btn-primary" type="submit">Save Question</button>
-                </form>
-            </div>
-        </div>
-        
-    </div>
-    <div class="col-lg-7">
+    <div class="col-12">
         <div class="card shadow-sm">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span>Question List</span>
                 <div class="d-flex gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <label for="subjectFilter" class="form-label mb-0 small text-muted">Filter by subject</label>
+                        <select id="subjectFilter" class="form-select form-select-sm" style="min-width: 180px;">
+                            <option value="">All subjects</option>
+                            <?php foreach ($subjects as $subject): ?>
+                                <option value="<?php echo htmlspecialchars($subject['name']); ?>"><?php echo htmlspecialchars($subject['name']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                     <button class="btn btn-sm btn-outline-danger" type="submit" form="bulkDeleteForm" id="bulkDeleteBtn" disabled>Delete Selected</button>
                 </div>
             </div>
@@ -354,6 +382,79 @@ $questions = DB::query('SELECT questions.*, subjects.name AS subject_name FROM q
     </div>
 </div>
 
+<div class="modal fade" id="addQuestionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Single Question</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form method="post" id="addQuestionForm">
+                    <input type="hidden" name="action" value="add">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Subject</label>
+                            <select name="subject_id" class="form-select" required>
+                                <option value="">Select subject</option>
+                                <?php foreach ($subjects as $subject): ?>
+                                    <option value="<?php echo (int)$subject['id']; ?>"><?php echo htmlspecialchars($subject['name']); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Type</label>
+                            <select name="question_type" class="form-select" required>
+                                <option value="mcq">Multiple Choice</option>
+                                <option value="fill">Fill in the Blank</option>
+                                <option value="essay">Essay</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Marks</label>
+                            <input type="number" name="marks" class="form-control" value="1" min="1" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Question</label>
+                            <textarea name="question_text" class="form-control" rows="6" required></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Correct Answer (Fill in the blank)</label>
+                            <input type="text" name="correct_answer" class="form-control mb-3">
+                            <div class="border rounded p-3">
+                                <div class="fw-semibold mb-2">MCQ Options</div>
+                                <div class="mb-2">
+                                    <input type="text" name="option_a" class="form-control" placeholder="Option A">
+                                </div>
+                                <div class="mb-2">
+                                    <input type="text" name="option_b" class="form-control" placeholder="Option B">
+                                </div>
+                                <div class="mb-2">
+                                    <input type="text" name="option_c" class="form-control" placeholder="Option C">
+                                </div>
+                                <div class="mb-2">
+                                    <input type="text" name="option_d" class="form-control" placeholder="Option D">
+                                </div>
+                                <label class="form-label">Correct Option</label>
+                                <select name="correct_option" class="form-select">
+                                    <option value="1">A</option>
+                                    <option value="2">B</option>
+                                    <option value="3">C</option>
+                                    <option value="4">D</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary" type="submit" form="addQuestionForm">Save Question</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <link rel="stylesheet" href="/cbt/assets/libs/datatables/css/dataTables.bootstrap5.min.css">
 <script src="/cbt/assets/libs/jquery/jquery.min.js"></script>
 <script src="/cbt/assets/libs/datatables/js/jquery.dataTables.min.js"></script>
@@ -371,6 +472,7 @@ $(function () {
 
     const bulkBtn = document.getElementById('bulkDeleteBtn');
     const selectAll = document.getElementById('selectAll');
+    const subjectFilter = document.getElementById('subjectFilter');
 
     function syncBulkButton() {
         const anyChecked = document.querySelectorAll('.row-check:checked').length > 0;
@@ -388,6 +490,16 @@ $(function () {
         const allChecked = $('input.row-check', rows).length === $('input.row-check:checked', rows).length;
         selectAll.checked = allChecked;
         syncBulkButton();
+    });
+
+    subjectFilter.addEventListener('change', function () {
+        const value = this.value.trim();
+        if (!value) {
+            table.column(2).search('').draw();
+            return;
+        }
+        const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        table.column(2).search('^' + escaped + '$', true, false).draw();
     });
 
     syncBulkButton();

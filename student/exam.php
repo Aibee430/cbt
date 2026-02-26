@@ -39,6 +39,17 @@ foreach ($options as $opt) {
     $option_map[$opt['question_id']][] = $opt;
 }
 
+function normalize_question_type($raw_type) {
+    $type = strtolower(trim((string)$raw_type));
+    if (in_array($type, ['mcq', 'objective', 'obj', 'multiple_choice', 'multiple choice'], true)) {
+        return 'mcq';
+    }
+    if (in_array($type, ['fill', 'fill_in_blank', 'fill in the blank', 'fib'], true)) {
+        return 'fill';
+    }
+    return 'essay';
+}
+
 $error = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $submitted_at = now_mysql();
@@ -49,9 +60,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Grade auto-marked question types immediately.
     foreach ($questions as $question) {
         $qid = (int)$question['id'];
+        $type = normalize_question_type($question['question_type'] ?? '');
+        $question_options = $option_map[$qid] ?? [];
+        $has_mcq_options = ($type === 'mcq' && count($question_options) > 0);
         $total_marks += (int)$question['marks'];
 
-        if ($question['question_type'] === 'mcq') {
+        if ($has_mcq_options) {
             $selected_option_id = (int)($_POST['answer'][$qid] ?? 0);
             $selected = null;
             if ($selected_option_id) {
@@ -69,18 +83,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'is_correct' => $is_correct ? 1 : 0,
                 'marks_awarded' => $marks_awarded
             ]);
-        } elseif ($question['question_type'] === 'fill') {
+        } elseif ($type === 'fill' || $type === 'mcq') {
             $answer_text = trim($_POST['answer'][$qid] ?? '');
             $expected = trim($question['correct_answer'] ?? '');
-            $is_correct = strcasecmp($answer_text, $expected) === 0;
-            $marks_awarded = $is_correct ? (int)$question['marks'] : 0;
-            $score += $marks_awarded;
+            if ($expected === '') {
+                $has_essay = true;
+                $is_correct = null;
+                $marks_awarded = null;
+            } else {
+                $is_correct = strcasecmp($answer_text, $expected) === 0;
+                $marks_awarded = $is_correct ? (int)$question['marks'] : 0;
+                $score += $marks_awarded;
+            }
 
             DB::insert('exam_answers', [
                 'attempt_id' => $attempt_id,
                 'question_id' => $qid,
                 'answer_text' => $answer_text,
-                'is_correct' => $is_correct ? 1 : 0,
+                'is_correct' => is_null($is_correct) ? null : ($is_correct ? 1 : 0),
                 'marks_awarded' => $marks_awarded
             ]);
         } else {
@@ -110,6 +130,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $end_time = strtotime($attempt['started_at']) + ((int)$attempt['duration_minutes'] * 60);
+$server_now = time();
+$remaining_seconds = max(0, $end_time - $server_now);
 ?>
 <style>
     .exam-sticky-bar {
@@ -149,7 +171,7 @@ $end_time = strtotime($attempt['started_at']) + ((int)$attempt['duration_minutes
 <div class="exam-sticky-bar">
     <div class="container d-flex justify-content-between align-items-center py-2">
         <h4 class="mb-0"><?php echo htmlspecialchars($attempt['title']); ?></h4>
-        <div class="timer-pill" id="examTimer" data-end="<?php echo $end_time; ?>">--:--</div>
+        <div class="timer-pill" id="examTimer" data-remaining-seconds="<?php echo (int)$remaining_seconds; ?>">--:--</div>
     </div>
 </div>
 <!-- <div class="exam-sticky-spacer"></div> -->
@@ -163,20 +185,28 @@ $end_time = strtotime($attempt['started_at']) + ((int)$attempt['duration_minutes
 <form method="post" id="examForm">
     <div class="question-nav" id="questionNav"></div>
     <?php foreach ($questions as $index => $question): ?>
+        <?php
+            $display_type = normalize_question_type($question['question_type'] ?? '');
+            $display_options = $option_map[$question['id']] ?? [];
+            $display_has_mcq_options = ($display_type === 'mcq' && count($display_options) > 0);
+        ?>
         <div class="exam-question question-card" data-question-id="<?php echo (int)$question['id']; ?>">
             <div class="fw-semibold mb-2">
                 Q<?php echo $index + 1; ?>. <?php echo htmlspecialchars($question['question_text']); ?>
                 <span class="badge bg-secondary ms-2">Marks: <?php echo (int)$question['marks']; ?></span>
             </div>
-            <?php if ($question['question_type'] === 'mcq'): ?>
-                <?php foreach ($option_map[$question['id']] ?? [] as $opt): ?>
+            <?php if ($display_has_mcq_options): ?>
+                <?php foreach ($display_options as $opt): ?>
                     <div class="form-check">
                         <input class="form-check-input" type="radio" name="answer[<?php echo (int)$question['id']; ?>]" value="<?php echo (int)$opt['id']; ?>">
                         <label class="form-check-label"><?php echo htmlspecialchars($opt['option_text']); ?></label>
                     </div>
                 <?php endforeach; ?>
-            <?php elseif ($question['question_type'] === 'fill'): ?>
+            <?php elseif ($display_type === 'fill' || $display_type === 'mcq'): ?>
                 <input type="text" name="answer[<?php echo (int)$question['id']; ?>]" class="form-control">
+                <?php if ($display_type === 'mcq' && !$display_has_mcq_options): ?>
+                    <div class="form-text text-warning">Options were not configured for this question, so a text answer is enabled.</div>
+                <?php endif; ?>
             <?php else: ?>
                 <textarea name="answer[<?php echo (int)$question['id']; ?>]" class="form-control" rows="4"></textarea>
             <?php endif; ?>
@@ -194,9 +224,10 @@ $end_time = strtotime($attempt['started_at']) + ((int)$attempt['duration_minutes
 <script>
 (function () {
     const timer = document.getElementById('examTimer');
-    const end = parseInt(timer.getAttribute('data-end'), 10) * 1000;
+    let remainingMs = parseInt(timer.getAttribute('data-remaining-seconds'), 10) * 1000;
     const form = document.getElementById('examForm');
     let isAutoSubmit = false;
+    let lastTickMs = performance.now();
     const storageKey = 'cbt_attempt_' + <?php echo (int)$attempt_id; ?>;
     const questionCards = Array.from(document.querySelectorAll('.question-card'));
     const questionNav = document.getElementById('questionNav');
@@ -347,16 +378,19 @@ $end_time = strtotime($attempt['started_at']) + ((int)$attempt['duration_minutes
     });
 
     function tick() {
-        const now = Date.now();
-        const diff = end - now;
-        if (diff <= 0) {
+        const nowTickMs = performance.now();
+        const elapsedMs = nowTickMs - lastTickMs;
+        lastTickMs = nowTickMs;
+        remainingMs -= elapsedMs;
+
+        if (remainingMs <= 0) {
             timer.textContent = '00:00';
             isAutoSubmit = true;
             form.submit();
             return;
         }
-        const minutes = Math.floor(diff / 60000);
-        const seconds = Math.floor((diff % 60000) / 1000);
+        const minutes = Math.floor(remainingMs / 60000);
+        const seconds = Math.floor((remainingMs % 60000) / 1000);
         timer.textContent = String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
     }
 

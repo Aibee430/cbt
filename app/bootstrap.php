@@ -101,9 +101,15 @@ function format_dt($datetime) {
 
 function enforce_session_timeout() {
     // Enforce idle logout for authenticated users only.
-    $timeout_seconds = defined('SESSION_IDLE_TIMEOUT_SECONDS') ? SESSION_IDLE_TIMEOUT_SECONDS : 600;
     if (!is_admin() && !is_student()) {
         return;
+    }
+
+    $timeout_seconds = 600;
+    if (is_admin()) {
+        $timeout_seconds = defined('ADMIN_SESSION_IDLE_TIMEOUT_SECONDS') ? ADMIN_SESSION_IDLE_TIMEOUT_SECONDS : 600;
+    } elseif (is_student()) {
+        $timeout_seconds = defined('STUDENT_SESSION_IDLE_TIMEOUT_SECONDS') ? STUDENT_SESSION_IDLE_TIMEOUT_SECONDS : 600;
     }
 
     $now = time();

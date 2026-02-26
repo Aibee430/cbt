@@ -1,0 +1,7 @@
+# Local database connection credentials
+connections/config.php
+connections/config.local.php
+connections/*.local.php
+
+# IDE/workspace files
+*.code-workspace

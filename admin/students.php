@@ -78,11 +78,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     $inserted = 0;
                     $skipped = 0;
+                    $row_errors = [];
+                    $missing_or_invalid_count = 0;
+                    $duplicate_count = 0;
+                    $db_error_count = 0;
+                    $line_number = 1;
                     $get = function ($key, $row) use ($columns) {
                         return isset($columns[$key]) ? ($row[$columns[$key]] ?? '') : '';
                     };
 
                     while (($row = fgetcsv($handle)) !== false) {
+                        $line_number++;
                         if (count(array_filter($row, 'strlen')) === 0) {
                             continue;
                         }
@@ -102,23 +108,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                         if (!$full_name || !$reg_no || !$email || !$class_id) {
                             $skipped++;
+                            $missing_or_invalid_count++;
                             continue;
                         }
 
-                        $hash = password_hash($password, PASSWORD_DEFAULT);
-                        DB::insert('students', [
-                            'class_id' => $class_id,
-                            'full_name' => $full_name,
-                            'reg_no' => $reg_no,
-                            'email' => $email,
-                            'password_hash' => $hash,
-                            'status' => 'active'
-                        ]);
-                        $inserted++;
+                        $exists = DB::queryFirstField(
+                            'SELECT id FROM students WHERE reg_no=%s OR email=%s LIMIT 1',
+                            $reg_no,
+                            $email
+                        );
+                        if ($exists) {
+                            $skipped++;
+                            $duplicate_count++;
+                            continue;
+                        }
+
+                        try {
+                            $hash = password_hash($password, PASSWORD_DEFAULT);
+                            DB::insert('students', [
+                                'class_id' => $class_id,
+                                'full_name' => $full_name,
+                                'reg_no' => $reg_no,
+                                'email' => $email,
+                                'password_hash' => $hash,
+                                'status' => 'active'
+                            ]);
+                            $inserted++;
+                        } catch (Throwable $e) {
+                            $skipped++;
+                            $db_error_count++;
+                            if (count($row_errors) < 3) {
+                                $row_errors[] = "line {$line_number}";
+                            }
+                        }
                     }
 
                     fclose($handle);
                     $bulk_report = "Bulk upload completed. Inserted: {$inserted}, Skipped: {$skipped}.";
+                    if ($skipped > 0) {
+                        $reason_parts = [];
+                        if ($missing_or_invalid_count > 0) {
+                            $reason_parts[] = "{$missing_or_invalid_count} row(s) had missing full_name/reg_no/email or an invalid class.";
+                        }
+                        if ($duplicate_count > 0) {
+                            $reason_parts[] = "{$duplicate_count} row(s) already exist (duplicate reg_no or email).";
+                        }
+                        if ($db_error_count > 0) {
+                            $reason_parts[] = "{$db_error_count} row(s) failed database validation.";
+                        }
+
+                        $error = 'Some rows were skipped: ' . implode(' ', $reason_parts);
+                        if ($row_errors) {
+                            $error .= ' Failed lines: ' . implode(', ', $row_errors) . '.';
+                        }
+                    }
                 }
             }
         } else {
@@ -139,11 +182,11 @@ $students = DB::query('SELECT students.*, classes.name AS class_name FROM studen
     <div class="alert alert-info" data-auto-dismiss><?php echo htmlspecialchars($bulk_report); ?></div>
 <?php endif; ?>
 <?php if ($error): ?>
-    <div class="alert alert-danger" data-auto-dismiss><?php echo htmlspecialchars($error); ?></div>
+    <div class="alert alert-danger" data-auto-dismiss data-auto-dismiss-ms="20000"><?php echo htmlspecialchars($error); ?></div>
 <?php endif; ?>
 
 <div class="row g-4">
-    <div class="col-lg-5">
+    <div class="col-12">
         <div class="card shadow-sm">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span>Student Actions</span>
@@ -169,9 +212,20 @@ $students = DB::query('SELECT students.*, classes.name AS class_name FROM studen
             </div>
         </div>
     </div>
-    <div class="col-lg-7">
+    <div class="col-12">
         <div class="card shadow-sm">
-            <div class="card-header">Student List</div>
+            <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <span>Student List</span>
+                <div class="d-flex align-items-center gap-2">
+                    <label for="classFilter" class="form-label mb-0 small text-muted">Filter by class</label>
+                    <select id="classFilter" class="form-select form-select-sm" style="min-width: 180px;">
+                        <option value="">All classes</option>
+                        <?php foreach ($classes as $class): ?>
+                            <option value="<?php echo htmlspecialchars($class['name']); ?>"><?php echo htmlspecialchars($class['name']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </div>
             <div class="card-body p-0">
                 <table class="table mb-0" id="studentsTable">
                     <thead>
@@ -267,12 +321,23 @@ $students = DB::query('SELECT students.*, classes.name AS class_name FROM studen
 <script src="/cbt/assets/libs/datatables/js/dataTables.bootstrap5.min.js"></script>
 <script>
 $(function () {
-    $('#studentsTable').DataTable({
+    const table = $('#studentsTable').DataTable({
         pageLength: 10,
         order: [[0, 'asc']],
         columnDefs: [
             { orderable: false, targets: [4] }
         ]
+    });
+
+    $('#classFilter').on('change', function () {
+        const value = this.value.trim();
+        if (!value) {
+            table.column(2).search('').draw();
+            return;
+        }
+
+        const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        table.column(2).search('^' + escaped + '$', true, false).draw();
     });
 });
 </script>
