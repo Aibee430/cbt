@@ -5,6 +5,7 @@ require_admin_permission('manage_students');
 $message = null;
 $error = null;
 $bulk_report = null;
+$error_rows = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
@@ -78,11 +79,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     $inserted = 0;
                     $skipped = 0;
-                    $row_errors = [];
                     $missing_or_invalid_count = 0;
                     $duplicate_count = 0;
                     $db_error_count = 0;
                     $line_number = 1;
+                    $add_row_error = function ($line, $full_name, $reg_no, $reason) use (&$error_rows) {
+                        $safe_name = trim((string)$full_name) !== '' ? trim((string)$full_name) : '[missing full_name]';
+                        $safe_reg = trim((string)$reg_no) !== '' ? trim((string)$reg_no) : '[missing reg_no]';
+                        $error_rows[] = [
+                            'line' => (int)$line,
+                            'reason' => $reason,
+                            'full_name' => $safe_name,
+                            'reg_no' => $safe_reg
+                        ];
+                    };
                     $get = function ($key, $row) use ($columns) {
                         return isset($columns[$key]) ? ($row[$columns[$key]] ?? '') : '';
                     };
@@ -109,6 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         if (!$full_name || !$reg_no || !$email || !$class_id) {
                             $skipped++;
                             $missing_or_invalid_count++;
+                            $add_row_error($line_number, $full_name, $reg_no, 'missing full_name/reg_no/email or invalid class');
                             continue;
                         }
 
@@ -120,6 +131,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         if ($exists) {
                             $skipped++;
                             $duplicate_count++;
+                            $add_row_error($line_number, $full_name, $reg_no, 'duplicate reg_no or email');
                             continue;
                         }
 
@@ -137,29 +149,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         } catch (Throwable $e) {
                             $skipped++;
                             $db_error_count++;
-                            if (count($row_errors) < 3) {
-                                $row_errors[] = "line {$line_number}";
-                            }
+                            $add_row_error($line_number, $full_name, $reg_no, 'database validation failed');
                         }
                     }
 
                     fclose($handle);
                     $bulk_report = "Bulk upload completed. Inserted: {$inserted}, Skipped: {$skipped}.";
                     if ($skipped > 0) {
-                        $reason_parts = [];
-                        if ($missing_or_invalid_count > 0) {
-                            $reason_parts[] = "{$missing_or_invalid_count} row(s) had missing full_name/reg_no/email or an invalid class.";
-                        }
-                        if ($duplicate_count > 0) {
-                            $reason_parts[] = "{$duplicate_count} row(s) already exist (duplicate reg_no or email).";
-                        }
-                        if ($db_error_count > 0) {
-                            $reason_parts[] = "{$db_error_count} row(s) failed database validation.";
-                        }
-
-                        $error = 'Some rows were skipped: ' . implode(' ', $reason_parts);
-                        if ($row_errors) {
-                            $error .= ' Failed lines: ' . implode(', ', $row_errors) . '.';
+                        if ($duplicate_count > 0 && $missing_or_invalid_count === 0 && $db_error_count === 0) {
+                            $error = "Some rows were skipped: {$duplicate_count} row(s) already exist (duplicate reg_no or email).";
+                        } else {
+                            $error = "Some rows were skipped: {$skipped} row(s). See details below.";
                         }
                     }
                 }
@@ -180,9 +180,6 @@ $students = DB::query('SELECT students.*, classes.name AS class_name FROM studen
 <?php endif; ?>
 <?php if ($bulk_report): ?>
     <div class="alert alert-info" data-auto-dismiss><?php echo htmlspecialchars($bulk_report); ?></div>
-<?php endif; ?>
-<?php if ($error): ?>
-    <div class="alert alert-danger" data-auto-dismiss data-auto-dismiss-ms="20000"><?php echo htmlspecialchars($error); ?></div>
 <?php endif; ?>
 
 <div class="row g-4">
@@ -212,6 +209,38 @@ $students = DB::query('SELECT students.*, classes.name AS class_name FROM studen
             </div>
         </div>
     </div>
+    <?php if ($error): ?>
+        <div class="col-12">
+            <div class="alert alert-danger alert-dismissible fade show mb-0" role="alert">
+                <?php echo nl2br(htmlspecialchars($error)); ?>
+                <?php if ($error_rows): ?>
+                    <div class="table-responsive mt-3">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Line</th>
+                                    <th>Student Full Name</th>
+                                    <th>Reg Number</th>
+                                    <th>Reason</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($error_rows as $row): ?>
+                                    <tr>
+                                        <td><?php echo (int)$row['line']; ?></td>
+                                        <td><?php echo htmlspecialchars($row['full_name']); ?></td>
+                                        <td><?php echo htmlspecialchars($row['reg_no']); ?></td>
+                                        <td><?php echo htmlspecialchars($row['reason']); ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        </div>
+    <?php endif; ?>
     <div class="col-12">
         <div class="card shadow-sm">
             <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">

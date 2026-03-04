@@ -5,6 +5,7 @@ require_admin_permission('manage_questions');
 $message = null;
 $error = null;
 $bulk_report = null;
+$error_rows = [];
 // Bulk delete feedback message.
 $bulk_delete_report = null;
 
@@ -107,13 +108,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $skipped = 0;
                     $row_number = 1;
                     $row_errors = [];
-                    $error_counts = [];
 
-                    $add_row_error = function ($line, $reason) use (&$row_errors, &$error_counts) {
-                        $error_counts[$reason] = ($error_counts[$reason] ?? 0) + 1;
-                        if (count($row_errors) < 10) {
-                            $row_errors[] = "line {$line}: {$reason}";
+                    $add_row_error = function ($line, $reason, $question_text = '') use (&$row_errors, &$error_rows) {
+                        $question_preview = trim((string)$question_text);
+                        if ($question_preview === '') {
+                            $question_preview = '[missing question_text]';
+                        } else {
+                            $question_preview = mb_strimwidth($question_preview, 0, 90, '...');
                         }
+                        $row_errors[] = "line {$line}: {$reason} (question: {$question_preview})";
+                        $error_rows[] = [
+                            'line' => (int)$line,
+                            'question' => $question_preview,
+                            'reason' => $reason
+                        ];
                     };
 
                     $normalize_type = function ($value) {
@@ -153,28 +161,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $question_type = $normalize_type($get('question_type', $row));
                         $question_text = trim((string)$get('question_text', $row));
                         $marks_raw = trim((string)$get('marks', $row));
-                        $marks = ($marks_raw === '') ? 1 : (int)$marks_raw;
-                        $marks = $marks > 0 ? $marks : 0;
+                        $marks = ($marks_raw === '') ? 0 : (int)$marks_raw;
                         $correct_answer = trim((string)$get('correct_answer', $row));
 
                         if (!$subject_id) {
                             $skipped++;
-                            $add_row_error($row_number, 'invalid or missing subject_id/subject_code');
+                            $add_row_error($row_number, 'invalid or missing subject_id/subject_code', $question_text);
                             continue;
                         }
                         if ($question_text === '') {
                             $skipped++;
-                            $add_row_error($row_number, 'question_text is required');
+                            $add_row_error($row_number, 'question_text is required', $question_text);
                             continue;
                         }
                         if ($question_type === '') {
                             $skipped++;
-                            $add_row_error($row_number, 'question_type must be mcq, fill, or essay');
+                            $add_row_error($row_number, 'question_type must be mcq, fill, or essay', $question_text);
+                            continue;
+                        }
+                        if ($marks_raw === '') {
+                            $skipped++;
+                            $add_row_error($row_number, 'marks is required', $question_text);
                             continue;
                         }
                         if ($marks <= 0) {
                             $skipped++;
-                            $add_row_error($row_number, 'marks must be a positive integer');
+                            $add_row_error($row_number, 'marks must be a positive integer', $question_text);
                             continue;
                         }
 
@@ -182,7 +194,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $correct_index = -1;
                         if ($question_type === 'fill' && $correct_answer === '') {
                             $skipped++;
-                            $add_row_error($row_number, 'correct_answer is required for fill questions');
+                            $add_row_error($row_number, 'correct_answer is required for fill questions', $question_text);
                             continue;
                         }
                         if ($question_type === 'mcq') {
@@ -195,13 +207,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $correct_raw = strtoupper(trim((string)$get('correct_option', $row)));
                             if ($correct_raw === '') {
                                 $skipped++;
-                                $add_row_error($row_number, 'correct_option is required for mcq questions');
+                                $add_row_error($row_number, 'correct_option is required for mcq questions', $question_text);
                                 continue;
                             }
                             $correct_index = ctype_digit($correct_raw) ? ((int)$correct_raw - 1) : (ord($correct_raw) - ord('A'));
                             if ($correct_index < 0 || $correct_index > 3) {
                                 $skipped++;
-                                $add_row_error($row_number, 'correct_option must be A-D or 1-4');
+                                $add_row_error($row_number, 'correct_option must be A-D or 1-4', $question_text);
                                 continue;
                             }
 
@@ -213,12 +225,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             }
                             if ($filled_option_count < 2) {
                                 $skipped++;
-                                $add_row_error($row_number, 'mcq questions require at least two non-empty options');
+                                $add_row_error($row_number, 'mcq questions require at least two non-empty options', $question_text);
                                 continue;
                             }
                             if (($options[$correct_index] ?? '') === '') {
                                 $skipped++;
-                                $add_row_error($row_number, 'correct_option points to an empty option');
+                                $add_row_error($row_number, 'correct_option points to an empty option', $question_text);
                                 continue;
                             }
                         }
@@ -249,25 +261,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $inserted++;
                         } catch (Throwable $e) {
                             $skipped++;
-                            $add_row_error($row_number, 'database error while saving row');
+                            $add_row_error($row_number, 'database error while saving row', $question_text);
                         }
                     }
 
                     fclose($handle);
                     $bulk_report = "Bulk upload completed. Inserted: {$inserted}, Skipped: {$skipped}.";
                     if ($skipped > 0) {
-                        arsort($error_counts);
-                        $summary = [];
-                        foreach ($error_counts as $reason => $count) {
-                            $summary[] = "{$count}x {$reason}";
-                            if (count($summary) >= 5) {
-                                break;
-                            }
-                        }
-                        $error = "Some rows were skipped.\nReasons: " . implode('; ', $summary) . '.';
-                        if ($row_errors) {
-                            $error .= "\nExamples: " . implode(' | ', $row_errors);
-                        }
+                        $error = "Some rows where skipped: {$skipped}";
                     }
                 }
             }
@@ -315,7 +316,32 @@ $questions = DB::query('SELECT questions.*, subjects.name AS subject_name FROM q
     <div class="alert alert-warning" data-auto-dismiss><?php echo htmlspecialchars($bulk_delete_report); ?></div>
 <?php endif; ?>
 <?php if ($error): ?>
-    <div class="alert alert-danger" data-auto-dismiss data-auto-dismiss-ms="25000"><?php echo nl2br(htmlspecialchars($error)); ?></div>
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <?php echo nl2br(htmlspecialchars($error)); ?>
+        <?php if ($error_rows): ?>
+            <div class="table-responsive mt-3">
+                <table class="table table-sm table-bordered mb-0">
+                    <thead>
+                        <tr>
+                            <th>Line</th>
+                            <th>Question</th>
+                            <th>Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($error_rows as $row): ?>
+                            <tr>
+                                <td><?php echo (int)$row['line']; ?></td>
+                                <td><?php echo htmlspecialchars($row['question']); ?></td>
+                                <td><?php echo htmlspecialchars($row['reason']); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif; ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
 <?php endif; ?>
 
 <div class="row g-4">
