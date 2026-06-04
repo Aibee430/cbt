@@ -7,7 +7,7 @@ require_student();
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Student - Codex CBT</title>
+    <title>Student - CBT</title>
     <link rel="stylesheet" href="/cbt/assets/css/bootstrap.min.css">
     <link rel="stylesheet" href="/cbt/assets/css/app.css">
 </head>

@@ -7,7 +7,7 @@ require_admin();
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Admin - Codex CBT</title>
+    <title>Admin - CBT</title>
     <link rel="stylesheet" href="/cbt/assets/css/bootstrap.min.css">
     <link rel="stylesheet" href="/cbt/assets/css/app.css">
 </head>

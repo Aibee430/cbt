@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Admin Login - Codex CBT</title>
+    <title>Admin Login CBT</title>
     <link rel="stylesheet" href="/cbt/assets/css/bootstrap.min.css">
     <link rel="stylesheet" href="/cbt/assets/css/app.css">
 </head>
@@ -60,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <button class="btn btn-primary w-100" type="submit">Sign in</button>
                 </form>
                 <div class="mt-3 small text-muted">
-                    Default admin: admin@codexcbt.local / admin123
+                    
                 </div>
             </div>
         </div>
