@@ -37,6 +37,8 @@ Assign roles in Admin -> Admins.
 3. Upload the CSV in the Bulk Upload section.
 4. Use `question_type` values: `mcq`, `fill`, or `essay`.
 5. For MCQ, provide options A-D and `correct_option` (A-D or 1-4).
+6. Every question must now include `class_name` or `class_id` so SS1/SS2 question banks stay separate.
+7. `question_text` and MCQ options support LaTeX and safe image markup such as `<img src="/cbt/uploads/questions/diagram.png" alt="Diagram">`.
 
 ## Bulk Upload Students (CSV)
 1. Go to Admin -> Students.

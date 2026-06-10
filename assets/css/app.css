@@ -44,3 +44,50 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.08em;
 }
+
+.cbt-rich-content {
+    line-height: 1.6;
+}
+
+.cbt-rich-content > :last-child {
+    margin-bottom: 0;
+}
+
+.cbt-rich-content img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 0.75rem 0;
+}
+
+.cbt-rich-content table {
+    width: 100%;
+    margin: 0.75rem 0;
+    border-collapse: collapse;
+}
+
+.cbt-rich-content th,
+.cbt-rich-content td {
+    border: 1px solid #dee2e6;
+    padding: 0.5rem 0.75rem;
+}
+
+.form-check-label .cbt-rich-content {
+    display: inline-block;
+}
+
+.cbt-preview-surface {
+    min-height: 260px;
+    padding: 1rem;
+    border-radius: 0.75rem;
+    background: #fff;
+    border: 1px dashed #cbd5e1;
+}
+
+.cbt-preview-surface hr {
+    margin: 1rem 0;
+}
+
+.cbt-question-modal {
+    max-width: min(1320px, calc(100vw - 2rem));
+}

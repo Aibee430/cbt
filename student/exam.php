@@ -192,14 +192,15 @@ $remaining_seconds = max(0, $end_time - $server_now);
         ?>
         <div class="exam-question question-card" data-question-id="<?php echo (int)$question['id']; ?>">
             <div class="fw-semibold mb-2">
-                Q<?php echo $index + 1; ?>. <?php echo htmlspecialchars($question['question_text']); ?>
+                <span>Q<?php echo $index + 1; ?>.</span>
+                <?php echo render_rich_content($question['question_text']); ?>
                 <span class="badge bg-secondary ms-2">Marks: <?php echo (int)$question['marks']; ?></span>
             </div>
             <?php if ($display_has_mcq_options): ?>
                 <?php foreach ($display_options as $opt): ?>
                     <div class="form-check">
                         <input class="form-check-input" type="radio" name="answer[<?php echo (int)$question['id']; ?>]" value="<?php echo (int)$opt['id']; ?>">
-                        <label class="form-check-label"><?php echo htmlspecialchars($opt['option_text']); ?></label>
+                        <label class="form-check-label"><?php echo render_rich_content($opt['option_text']); ?></label>
                     </div>
                 <?php endforeach; ?>
             <?php elseif ($display_type === 'fill' || $display_type === 'mcq'): ?>

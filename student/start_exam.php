@@ -4,6 +4,7 @@ require_once __DIR__ . '/header.php';
 $exam_id = (int)($_GET['exam_id'] ?? 0);
 $student_id = $_SESSION['student']['id'];
 $class_id = $_SESSION['student']['class_id'];
+$question_class_scope_enabled = question_class_scope_enabled();
 
 $exam = DB::queryFirstRow('
     SELECT exams.*
@@ -54,7 +55,31 @@ $_SESSION['active_exam_attempt_id'] = $attempt_id;
 // Pull random questions or a fixed list depending on exam settings.
 $question_ids = [];
 if ((int)$exam['randomize'] === 1) {
-    $question_ids = DB::queryFirstColumn('SELECT id FROM questions WHERE subject_id=%i ORDER BY RAND() LIMIT %i', $exam['subject_id'], $exam['question_count']);
+    if ($question_class_scope_enabled) {
+        $question_ids = DB::queryFirstColumn(
+            'SELECT id FROM questions WHERE subject_id=%i AND class_id=%i ORDER BY RAND() LIMIT %i',
+            $exam['subject_id'],
+            $class_id,
+            $exam['question_count']
+        );
+        $missing = (int)$exam['question_count'] - count($question_ids);
+        if ($missing > 0) {
+            $exclude_ids = $question_ids ?: [0];
+            $fallback_ids = DB::queryFirstColumn(
+                'SELECT id FROM questions WHERE subject_id=%i AND class_id IS NULL AND id NOT IN %li ORDER BY RAND() LIMIT %i',
+                $exam['subject_id'],
+                $exclude_ids,
+                $missing
+            );
+            $question_ids = array_merge($question_ids, $fallback_ids);
+        }
+    } else {
+        $question_ids = DB::queryFirstColumn(
+            'SELECT id FROM questions WHERE subject_id=%i ORDER BY RAND() LIMIT %i',
+            $exam['subject_id'],
+            $exam['question_count']
+        );
+    }
 } else {
     $question_ids = DB::queryFirstColumn('SELECT question_id FROM exam_questions WHERE exam_id=%i', $exam_id);
 }

@@ -37,18 +37,20 @@ CREATE TABLE subjects (
 CREATE TABLE questions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     subject_id INT NOT NULL,
+    class_id INT NULL,
     question_text TEXT NOT NULL,
     question_type ENUM('mcq','fill','essay') NOT NULL,
     correct_answer TEXT NULL,
     marks INT NOT NULL DEFAULT 1,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_questions_subject FOREIGN KEY (subject_id) REFERENCES subjects(id)
+    CONSTRAINT fk_questions_subject FOREIGN KEY (subject_id) REFERENCES subjects(id),
+    CONSTRAINT fk_questions_class FOREIGN KEY (class_id) REFERENCES classes(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE question_options (
     id INT AUTO_INCREMENT PRIMARY KEY,
     question_id INT NOT NULL,
-    option_text VARCHAR(255) NOT NULL,
+    option_text TEXT NOT NULL,
     is_correct TINYINT(1) NOT NULL DEFAULT 0,
     CONSTRAINT fk_options_question FOREIGN KEY (question_id) REFERENCES questions(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -137,11 +139,11 @@ VALUES (1, 'Student One', 'CBT001', 'student@codexcbt.local', '$2y$10$tJar65QqAM
 
 INSERT INTO subjects (name, code) VALUES ('General Knowledge', 'GK');
 
-INSERT INTO questions (id, subject_id, question_text, question_type, correct_answer, marks)
+INSERT INTO questions (id, subject_id, class_id, question_text, question_type, correct_answer, marks)
 VALUES
-(1, 1, 'Which color is the sky on a clear day?', 'mcq', NULL, 1),
-(2, 1, 'The capital of Nigeria is _____.', 'fill', 'Abuja', 2),
-(3, 1, 'Explain why time management matters during exams.', 'essay', NULL, 5);
+(1, 1, 1, 'Which color is the sky on a clear day?', 'mcq', NULL, 1),
+(2, 1, 1, 'The capital of Nigeria is _____.', 'fill', 'Abuja', 2),
+(3, 1, 1, 'Explain why time management matters during exams.', 'essay', NULL, 5);
 
 INSERT INTO question_options (question_id, option_text, is_correct)
 VALUES

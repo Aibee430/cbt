@@ -83,21 +83,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php foreach ($answers as $answer): ?>
         <div class="exam-question">
             <div class="fw-semibold mb-2">
-                <?php echo htmlspecialchars($answer['question_text']); ?>
+                <?php echo render_rich_content($answer['question_text']); ?>
                 <span class="badge badge-soft ms-2"><?php echo strtoupper($answer['question_type']); ?></span>
                 <span class="badge bg-secondary ms-2">Marks: <?php echo (int)$answer['marks']; ?></span>
             </div>
             <?php if ($answer['question_type'] === 'mcq'): ?>
                 <div class="text-muted">Selected Option ID: <?php echo htmlspecialchars($answer['selected_option_id']); ?></div>
-                <div>Answer: <?php echo htmlspecialchars($answer['answer_text'] ?? '-'); ?></div>
+                <div>Answer: <?php echo render_rich_content($answer['answer_text'] ?? '-'); ?></div>
                 <div>Correct: <?php echo htmlspecialchars($answer['is_correct'] ? 'Yes' : 'No'); ?></div>
             <?php elseif ($answer['question_type'] === 'fill'): ?>
-                <div>Answer: <?php echo htmlspecialchars($answer['answer_text'] ?? '-'); ?></div>
-                <div class="text-muted">Expected: <?php echo htmlspecialchars($answer['correct_answer'] ?? '-'); ?></div>
+                <div>Answer: <?php echo render_plain_response($answer['answer_text'] ?? '-'); ?></div>
+                <div class="text-muted">Expected: <?php echo render_plain_response($answer['correct_answer'] ?? '-'); ?></div>
             <?php else: ?>
                 <div class="mb-3">
                     <div class="text-muted mb-1">Student Response</div>
-                    <div class="border rounded p-2 bg-light"><?php echo nl2br(htmlspecialchars($answer['answer_text'] ?? '')); ?></div>
+                    <div class="border rounded p-2 bg-light cbt-rich-content"><?php echo render_plain_response($answer['answer_text'] ?? ''); ?></div>
                 </div>
                 <div class="mb-2">
                     <label class="form-label">Marks Awarded (max <?php echo (int)$answer['marks']; ?>)</label>

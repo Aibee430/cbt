@@ -2,6 +2,8 @@
 connections/config.php
 connections/config.local.php
 connections/*.local.php
+uploads/questions/*
+!uploads/questions/.gitkeep
 
 # IDE/workspace files
 *.code-workspace
