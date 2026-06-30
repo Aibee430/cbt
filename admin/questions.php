@@ -8,10 +8,10 @@ $bulk_report = null;
 $error_rows = [];
 // Bulk delete feedback message.
 $bulk_delete_report = null;
-$uploaded_asset_markup = null;
 $uploaded_asset_target = null;
 $reopen_question_modal = false;
 $question_class_scope_enabled = question_class_scope_enabled();
+$uploadable_asset_fields = ['question_text', 'option_a', 'option_b', 'option_c', 'option_d'];
 $form_values = [
     'subject_id' => '',
     'class_id' => '',
@@ -32,6 +32,22 @@ function question_upload_dir() {
 
 function question_upload_web_path($filename) {
     return '/cbt/uploads/questions/' . rawurlencode($filename);
+}
+
+function append_uploaded_asset_markup($existing, $markup) {
+    $existing = trim((string)$existing);
+    if ($existing === '') {
+        return $markup;
+    }
+
+    $separator = "\n";
+    if (strpos($existing, '<img') !== false || strpos($existing, '</') !== false) {
+        $separator = "\n";
+    } elseif (substr($existing, -1) !== ' ') {
+        $separator = ' ';
+    }
+
+    return $existing . $separator . $markup;
 }
 
 function store_question_asset($file) {
@@ -100,8 +116,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $asset = store_question_asset($_FILES['question_asset'] ?? []);
             $uploaded_asset_target = $_POST['insert_target'] ?? 'question_text';
+            if (!in_array($uploaded_asset_target, $uploadable_asset_fields, true)) {
+                throw new RuntimeException('Invalid upload target.');
+            }
+
             $uploaded_asset_markup = '<img src="' . htmlspecialchars($asset['url'], ENT_QUOTES, 'UTF-8') . '" alt="' . htmlspecialchars($asset['alt'], ENT_QUOTES, 'UTF-8') . '">';
-            $message = 'Image uploaded. Insert it into the selected field below.';
+            $form_values[$uploaded_asset_target] = append_uploaded_asset_markup($form_values[$uploaded_asset_target] ?? '', $uploaded_asset_markup);
+            $message = 'Image uploaded into ' . ucwords(str_replace('_', ' ', $uploaded_asset_target)) . '.';
         } catch (Throwable $e) {
             $error = $e->getMessage();
         }
@@ -599,46 +620,21 @@ $questions = $question_class_scope_enabled
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form method="post" enctype="multipart/form-data" id="addQuestionAssetForm" class="mb-4">
+                <form method="post" enctype="multipart/form-data" id="addQuestionAssetForm" class="d-none">
                     <input type="hidden" name="action" value="upload_asset">
-                    <div class="border rounded p-3 bg-light">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <div>
-                                <div class="fw-semibold">Diagram Upload</div>
-                                <div class="small text-muted">Upload an image, then insert the generated tag into any rich-content field.</div>
-                            </div>
-                        </div>
-                        <div class="row g-2 align-items-end">
-                            <div class="col-md-5">
-                                <label class="form-label">Image File</label>
-                                <input type="file" name="question_asset" class="form-control" accept=".png,.jpg,.jpeg,.gif,.webp,.svg" required>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Insert Into</label>
-                                <select name="insert_target" id="insertTarget" class="form-select">
-                                    <option value="question_text" <?php echo $uploaded_asset_target === 'question_text' ? 'selected' : ''; ?>>Question Text</option>
-                                    <option value="option_a" <?php echo $uploaded_asset_target === 'option_a' ? 'selected' : ''; ?>>Option A</option>
-                                    <option value="option_b" <?php echo $uploaded_asset_target === 'option_b' ? 'selected' : ''; ?>>Option B</option>
-                                    <option value="option_c" <?php echo $uploaded_asset_target === 'option_c' ? 'selected' : ''; ?>>Option C</option>
-                                    <option value="option_d" <?php echo $uploaded_asset_target === 'option_d' ? 'selected' : ''; ?>>Option D</option>
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <button class="btn btn-outline-primary w-100" type="submit">Upload Image</button>
-                            </div>
-                        </div>
-                        <?php if ($uploaded_asset_markup): ?>
-                            <div class="mt-3">
-                                <label class="form-label">Generated Markup</label>
-                                <textarea class="form-control" id="uploadedAssetMarkup" rows="2" readonly><?php echo $uploaded_asset_markup; ?></textarea>
-                                <div class="d-flex gap-2 mt-2">
-                                    <button class="btn btn-sm btn-primary" type="button" id="insertUploadedAssetBtn">Insert Into Selected Field</button>
-                                    <button class="btn btn-sm btn-outline-secondary" type="button" id="copyUploadedAssetBtn">Copy Markup</button>
-                                </div>
-                            </div>
-                        <?php endif; ?>
-                    </div>
+                    <input type="hidden" name="insert_target" id="assetUploadTarget" value="<?php echo htmlspecialchars($uploaded_asset_target ?? 'question_text'); ?>">
+                    <?php foreach (array_keys($form_values) as $key): ?>
+                        <input type="hidden" name="<?php echo htmlspecialchars($key); ?>" id="assetMirror_<?php echo htmlspecialchars($key); ?>" value="<?php echo htmlspecialchars($form_values[$key]); ?>">
+                    <?php endforeach; ?>
+                    <input type="file" name="question_asset" id="assetUploadInput" accept=".png,.jpg,.jpeg,.gif,.webp,.svg">
                 </form>
+
+                <div class="border rounded p-3 bg-light mb-4">
+                    <div class="fw-semibold">Field Image Upload</div>
+                    <div class="small text-muted mb-0">
+                        Each rich field has its own upload button below. Uploaded images are added directly to that field so question and option images do not overwrite one another.
+                    </div>
+                </div>
 
                 <form method="post" id="addQuestionForm">
                     <input type="hidden" name="action" value="add">
@@ -676,7 +672,10 @@ $questions = $question_class_scope_enabled
                             <input type="number" name="marks" class="form-control" value="<?php echo htmlspecialchars($form_values['marks']); ?>" min="1" required>
                         </div>
                         <div class="col-lg-3">
-                            <label class="form-label">Question</label>
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="form-label mb-0">Question</label>
+                                <button class="btn btn-sm btn-outline-primary field-image-upload-btn" type="button" data-target-field="question_text">Upload Question Image</button>
+                            </div>
                             <textarea name="question_text" id="questionTextField" class="form-control rich-input" rows="6" required><?php echo htmlspecialchars($form_values['question_text']); ?></textarea>
                             <div class="form-text">
                                 Supports safe HTML and MathJax LaTeX. Example:
@@ -689,15 +688,31 @@ $questions = $question_class_scope_enabled
                             <div class="border rounded p-3">
                                 <div class="fw-semibold mb-2">MCQ Options</div>
                                 <div class="mb-2">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <label class="form-label mb-0 small text-muted">Option A</label>
+                                        <button class="btn btn-sm btn-outline-primary field-image-upload-btn" type="button" data-target-field="option_a">Upload Image</button>
+                                    </div>
                                     <input type="text" name="option_a" id="optionAField" class="form-control rich-input" placeholder="Option A" value="<?php echo htmlspecialchars($form_values['option_a']); ?>">
                                 </div>
                                 <div class="mb-2">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <label class="form-label mb-0 small text-muted">Option B</label>
+                                        <button class="btn btn-sm btn-outline-primary field-image-upload-btn" type="button" data-target-field="option_b">Upload Image</button>
+                                    </div>
                                     <input type="text" name="option_b" id="optionBField" class="form-control rich-input" placeholder="Option B" value="<?php echo htmlspecialchars($form_values['option_b']); ?>">
                                 </div>
                                 <div class="mb-2">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <label class="form-label mb-0 small text-muted">Option C</label>
+                                        <button class="btn btn-sm btn-outline-primary field-image-upload-btn" type="button" data-target-field="option_c">Upload Image</button>
+                                    </div>
                                     <input type="text" name="option_c" id="optionCField" class="form-control rich-input" placeholder="Option C" value="<?php echo htmlspecialchars($form_values['option_c']); ?>">
                                 </div>
                                 <div class="mb-2">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <label class="form-label mb-0 small text-muted">Option D</label>
+                                        <button class="btn btn-sm btn-outline-primary field-image-upload-btn" type="button" data-target-field="option_d">Upload Image</button>
+                                    </div>
                                     <input type="text" name="option_d" id="optionDField" class="form-control rich-input" placeholder="Option D" value="<?php echo htmlspecialchars($form_values['option_d']); ?>">
                                 </div>
                                 <label class="form-label">Correct Option</label>
@@ -762,10 +777,11 @@ $(function () {
         option_c: document.getElementById('optionCField'),
         option_d: document.getElementById('optionDField')
     };
-    const uploadMarkup = document.getElementById('uploadedAssetMarkup');
-    const insertUploadedAssetBtn = document.getElementById('insertUploadedAssetBtn');
-    const copyUploadedAssetBtn = document.getElementById('copyUploadedAssetBtn');
-    const insertTarget = document.getElementById('insertTarget');
+    const addQuestionForm = document.getElementById('addQuestionForm');
+    const addQuestionAssetForm = document.getElementById('addQuestionAssetForm');
+    const assetUploadTarget = document.getElementById('assetUploadTarget');
+    const assetUploadInput = document.getElementById('assetUploadInput');
+    const fieldUploadButtons = document.querySelectorAll('.field-image-upload-btn');
 
     function syncBulkButton() {
         const anyChecked = document.querySelectorAll('.row-check:checked').length > 0;
@@ -818,6 +834,23 @@ $(function () {
         renderPreview();
     }
 
+    function syncAssetUploadMirrors() {
+        if (!addQuestionAssetForm) {
+            return;
+        }
+
+        const fieldsToMirror = ['subject_id', 'class_id', 'question_type', 'marks', 'question_text', 'correct_answer', 'option_a', 'option_b', 'option_c', 'option_d', 'correct_option'];
+        fieldsToMirror.forEach(function (name) {
+            const source = addQuestionForm ? addQuestionForm.querySelector('[name="' + name + '"]') : null;
+            const mirror = document.getElementById('assetMirror_' + name);
+            if (!mirror) {
+                return;
+            }
+
+            mirror.value = source ? source.value : '';
+        });
+    }
+
     selectAll.addEventListener('change', function () {
         const rows = table.rows({ search: 'applied' }).nodes();
         $('input.row-check', rows).prop('checked', this.checked);
@@ -864,24 +897,27 @@ $(function () {
         previewButton.addEventListener('click', renderPreview);
     }
 
-    if (insertUploadedAssetBtn && uploadMarkup && insertTarget) {
-        insertUploadedAssetBtn.addEventListener('click', function () {
-            const field = richFields[insertTarget.value];
-            insertMarkupIntoField(field, uploadMarkup.value);
+    fieldUploadButtons.forEach(function (button) {
+        button.addEventListener('click', function () {
+            if (!assetUploadInput || !assetUploadTarget) {
+                return;
+            }
+
+            assetUploadTarget.value = button.getAttribute('data-target-field') || 'question_text';
+            assetUploadInput.click();
+        });
+    });
+
+    if (assetUploadInput) {
+        assetUploadInput.addEventListener('change', function () {
+            if (!assetUploadInput.files || assetUploadInput.files.length === 0 || !addQuestionAssetForm) {
+                return;
+            }
+
+            syncAssetUploadMirrors();
+            addQuestionAssetForm.submit();
         });
     }
-
-    if (copyUploadedAssetBtn && uploadMarkup) {
-        copyUploadedAssetBtn.addEventListener('click', function () {
-            navigator.clipboard.writeText(uploadMarkup.value).catch(function () {});
-        });
-    }
-
-    <?php if ($uploaded_asset_markup): ?>
-    if (insertUploadedAssetBtn) {
-        insertUploadedAssetBtn.click();
-    }
-    <?php endif; ?>
 
     <?php if ($reopen_question_modal): ?>
     const reopenQuestionModalElement = document.getElementById('addQuestionModal');

@@ -91,3 +91,39 @@ body {
 .cbt-question-modal {
     max-width: min(1320px, calc(100vw - 2rem));
 }
+
+.exam-option-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.exam-option-letter {
+    min-width: 1.5rem;
+    line-height: 1.5;
+}
+
+.exam-option-radio {
+    float: none !important;
+    margin-left: 0 !important;
+    margin-top: 0.3rem;
+    flex: 0 0 auto;
+}
+
+.exam-option-label {
+    display: block;
+    margin-bottom: 0;
+    flex: 1 1 auto;
+}
+
+.exam-option-label .cbt-rich-content {
+    display: block;
+}
+
+.exam-option-label .cbt-rich-content img {
+    display: inline-block;
+    margin: 0;
+    max-width: min(320px, 100%);
+    vertical-align: top;
+}

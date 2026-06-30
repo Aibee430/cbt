@@ -197,10 +197,14 @@ $remaining_seconds = max(0, $end_time - $server_now);
                 <span class="badge bg-secondary ms-2">Marks: <?php echo (int)$question['marks']; ?></span>
             </div>
             <?php if ($display_has_mcq_options): ?>
-                <?php foreach ($display_options as $opt): ?>
-                    <div class="form-check">
-                        <input class="form-check-input" type="radio" name="answer[<?php echo (int)$question['id']; ?>]" value="<?php echo (int)$opt['id']; ?>">
-                        <label class="form-check-label"><?php echo render_rich_content($opt['option_text']); ?></label>
+                <?php foreach ($display_options as $opt_index => $opt): ?>
+                    <?php $option_label = chr(ord('A') + $opt_index); ?>
+                    <div class="exam-option-row">
+                        <span class="exam-option-letter fw-semibold"><?php echo $option_label; ?>.</span>
+                        <input class="form-check-input exam-option-radio" type="radio" name="answer[<?php echo (int)$question['id']; ?>]" value="<?php echo (int)$opt['id']; ?>">
+                        <label class="form-check-label exam-option-label">
+                            <?php echo render_rich_content($opt['option_text']); ?>
+                        </label>
                     </div>
                 <?php endforeach; ?>
             <?php elseif ($display_type === 'fill' || $display_type === 'mcq'): ?>
